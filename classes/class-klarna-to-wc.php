@@ -227,52 +227,56 @@ class WC_Gateway_Klarna_K2WC {
 				$this->klarna_log->add( 'klarna', microtime() . ": Debug backtrace for preparing order $order_id: " . $e->getTraceAsString() );
 			}
 
-			// Need to clean up the order first, to avoid duplicate items.
-			$order->remove_order_items();
+			// Need to clean up the order first, to avoid duplicate items, only if cart has changed.
+			if ( WC()->session->get( 'klarna_wc_cart' ) !== md5( serialize( WC()->cart ) ) ) {
+				$order->remove_order_items();
 
-			if ( 'yes' === $this->klarna_debug ) {
-				$this->klarna_log->add( 'klarna', microtime() . ": Removed order items from order $order_id..." );
-				if ( get_post_meta( $order_id, '_customer_user_agent', true ) ) {
-					$customer_user_agent = get_post_meta( $order_id, '_customer_user_agent', true );
-					$this->klarna_log->add( 'klarna', microtime() . ": Customer user agent for $order_id: $customer_user_agent" );
+				if ( 'yes' === $this->klarna_debug ) {
+					$this->klarna_log->add( 'klarna', microtime() . ": Removed order items from order $order_id..." );
+					if ( get_post_meta( $order_id, '_customer_user_agent', true ) ) {
+						$customer_user_agent = get_post_meta( $order_id, '_customer_user_agent', true );
+						$this->klarna_log->add( 'klarna', microtime() . ": Customer user agent for $order_id: $customer_user_agent" );
+					}
 				}
-			}
 
-			// Add order items.
-			$order_items = $order->get_items( array( 'line_item' ) );
-			if ( empty( $order_items ) ) {
-				$this->add_order_items( $order );
-			}
+				// Add order items.
+				$order_items = $order->get_items( array( 'line_item' ) );
+				if ( empty( $order_items ) ) {
+					$this->add_order_items( $order );
+				}
 
-			// Add order fees.
-			$order_fees = $order->get_items( array( 'fee' ) );
-			if ( empty( $order_fees ) ) {
-				$this->add_order_fees( $order );
-			}
+				// Add order fees.
+				$order_fees = $order->get_items( array( 'fee' ) );
+				if ( empty( $order_fees ) ) {
+					$this->add_order_fees( $order );
+				}
 
-			// Add order shipping.
-			$order_shipping = $order->get_items( array( 'shipping' ) );
-			if ( empty( $order_shipping ) ) {
-				$this->add_order_shipping( $order );
-			}
+				// Add order shipping.
+				$order_shipping = $order->get_items( array( 'shipping' ) );
+				if ( empty( $order_shipping ) ) {
+					$this->add_order_shipping( $order );
+				}
 
-			// Add order taxes.
-			$order_taxes = $order->get_items( array( 'tax' ) );
-			if ( empty( $order_taxes ) ) {
-				$this->add_order_tax_rows( $order );
-			}
+				// Add order taxes.
+				$order_taxes = $order->get_items( array( 'tax' ) );
+				if ( empty( $order_taxes ) ) {
+					$this->add_order_tax_rows( $order );
+				}
 
-			// Store coupons.
-			$order_coupons = $order->get_items( array( 'coupon' ) );
-			if ( empty( $order_coupons ) ) {
-				$this->add_order_coupons( $order );
+				// Store coupons.
+				$order_coupons = $order->get_items( array( 'coupon' ) );
+				if ( empty( $order_coupons ) ) {
+					$this->add_order_coupons( $order );
+				}
+
+				// Calculate order totals.
+				$this->set_order_totals( $order );
+
+				WC()->session->set( 'klarna_wc_cart', md5( serialize( WC()->cart ) ) );
 			}
 
 			// Store payment method.
 			$this->add_order_payment_method( $order );
-
-			// Calculate order totals.
-			$this->set_order_totals( $order );
 
 			// Tie this order to a user.
 			if ( email_exists( $customer_email ) ) {

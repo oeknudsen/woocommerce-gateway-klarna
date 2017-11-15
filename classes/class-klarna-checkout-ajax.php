@@ -965,37 +965,40 @@ class WC_Gateway_Klarna_Checkout_Ajax {
 		if ( 0 === count( $cart ) ) {
 			$klarna_order = null;
 		} else {
-			// Reset cart
-			if ( $klarna_is_rest ) {
-				$update['order_lines'] = array();
-				$klarna_order_total    = 0;
-				$klarna_tax_total      = 0;
+			// Reset cart if something has changed
+			if ( WC()->session->get( 'klarna_cart' ) !== md5( serialize( $cart ) ) ) {
+				if ( $klarna_is_rest ) {
+					$update['order_lines'] = array();
+					$klarna_order_total    = 0;
+					$klarna_tax_total      = 0;
 
-				foreach ( $cart as $item ) {
-					$update['order_lines'][] = $item;
-					$klarna_order_total      += $item['total_amount'];
-					// Process sales_tax item differently
-					if ( array_key_exists( 'type', $item ) && 'sales_tax' == $item['type'] ) {
-						$klarna_tax_total += $item['total_amount'];
-					} else {
-						$klarna_tax_total += $item['total_tax_amount'];
+					foreach ( $cart as $item ) {
+						$update['order_lines'][] = $item;
+						$klarna_order_total      += $item['total_amount'];
+						// Process sales_tax item differently
+						if ( array_key_exists( 'type', $item ) && 'sales_tax' == $item['type'] ) {
+							$klarna_tax_total += $item['total_amount'];
+						} else {
+							$klarna_tax_total += $item['total_tax_amount'];
+						}
+					}
+					$update['order_amount']     = $klarna_order_total;
+					$update['order_tax_amount'] = $klarna_tax_total;
+				} else {
+					$update['cart']['items'] = array();
+
+					foreach ( $cart as $item ) {
+						$update['cart']['items'][] = $item;
 					}
 				}
-				$update['order_amount']     = $klarna_order_total;
-				$update['order_tax_amount'] = $klarna_tax_total;
-			} else {
-				$update['cart']['items'] = array();
 
-				foreach ( $cart as $item ) {
-					$update['cart']['items'][] = $item;
-				}
-			}
-
-			try {
-				$klarna_order->update( apply_filters( 'kco_update_order', $update ) );
-			} catch ( Exception $e ) {
-				if ( $klarna_debug == 'yes' ) {
-					$klarna_log->add( 'klarna', 'Klarna API error: ' . var_export( $e, true ) );
+				try {
+					$klarna_order->update( apply_filters( 'kco_update_order', $update ) );
+					WC()->session->set( 'klarna_cart', md5( serialize( $cart ) ) );
+				} catch ( Exception $e ) {
+					if ( $klarna_debug == 'yes' ) {
+						$klarna_log->add( 'klarna', 'Klarna API error: ' . var_export( $e, true ) );
+					}
 				}
 			}
 		}
