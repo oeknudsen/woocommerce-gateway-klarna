@@ -156,6 +156,17 @@ do_action( 'klarna_before_kco_confirmation', $order_id, $klarna_order );
 
 echo $snippet;
 
+
+// MonsterInsights compatibility.
+$order->calculate_totals( false );
+$order->update_status( 'pending' ); // Set status to Pending Payment before completing the order.
+$order->payment_complete( $order_uri );
+$order->set_date_created( current_time( 'timestamp', true ) );
+delete_post_meta( klarna_wc_get_order_id( $order ), '_kco_incomplete_customer_email' );
+add_post_meta( klarna_wc_get_order_id( $order ), '_kco_payment_created', time() );
+// MonsterInsights compatibility.
+
+
 do_action( 'klarna_after_kco_confirmation', $order_id, $klarna_order );
 
 if ( ! did_action( 'woocommerce_thankyou' ) ) {
