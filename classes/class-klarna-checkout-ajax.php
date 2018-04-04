@@ -476,13 +476,15 @@ class WC_Gateway_Klarna_Checkout_Ajax {
 			}
 
 			if ( count( WC()->cart->get_applied_coupons() ) > 0 ) {
-				if ( WC()->customer->get_billing_email() ) {
-					$coupons_before = count( WC()->cart->get_applied_coupons() );
-					WC()->cart->check_customer_coupons( array( 'billing_email' => WC()->customer->get_billing_email() ) );
-					if ( count( WC()->cart->get_applied_coupons() ) < $coupons_before ) {
-						$coupon              = new WC_Coupon();
-						$data['widget_html'] .= '<div class="woocommerce-error">' . $coupon->get_coupon_error( WC_Coupon::E_WC_COUPON_USAGE_LIMIT_REACHED ) . '</div>';
-					}
+				if( is_callable( array( WC()->customer, 'get_billing_email' ) ) ) {
+					if ( WC()->customer->get_billing_email() ) {
+						$coupons_before = count( WC()->cart->get_applied_coupons() );
+						WC()->cart->check_customer_coupons( array( 'billing_email' => WC()->customer->get_billing_email() ) );
+						if ( count( WC()->cart->get_applied_coupons() ) < $coupons_before ) {
+							$coupon              = new WC_Coupon();
+							$data['widget_html'] .= '<div class="woocommerce-error">' . $coupon->get_coupon_error( WC_Coupon::E_WC_COUPON_USAGE_LIMIT_REACHED ) . '</div>';
+						}
+					}	
 				}
 			}
 		}
@@ -548,7 +550,12 @@ class WC_Gateway_Klarna_Checkout_Ajax {
 		if ( isset( $_REQUEST['postal_code'] ) && is_string( $_REQUEST['postal_code'] ) && WC_Validation::is_postcode( $_REQUEST['postal_code'], $klarna_country ) ) {
 			$recalculate_shipping = true;
 
-			WC()->customer->set_billing_postcode( $_REQUEST['postal_code'] );
+
+			if ( is_callable( array( WC()->customer, 'set_billing_postcode' ) ) ) {
+				WC()->customer->set_billing_postcode( $_REQUEST['postal_code'] );
+			} else {
+				WC()->customer->set_postcode( $_REQUEST['postal_code'] );
+			}
 
 			if ( ! WC()->session->get( 'klarna_separate_shipping' ) ) {
 				WC()->customer->set_shipping_postcode( $_REQUEST['postal_code'] );
@@ -573,8 +580,8 @@ class WC_Gateway_Klarna_Checkout_Ajax {
 				$this->ajax_update_klarna_order();
 			}
 		}
-
-		if ( $klarna_debug == 'yes' ) {
+		// Log if WC 3.0+
+		if ( $klarna_debug == 'yes' && is_callable( array( WC()->customer, 'save' ) ) ) {
 			$klarna_log->add( 'klarna', 'OrderID: ' . WC()->session->get( 'ongoing_klarna_order' ) . '. Customer billing country: ' . WC()->customer->get_billing_country() );
 			$klarna_log->add( 'klarna', 'OrderID: ' . WC()->session->get( 'ongoing_klarna_order' ) . '. Customer billing postcode: ' . WC()->customer->get_billing_postcode() );
 			$klarna_log->add( 'klarna', 'OrderID: ' . WC()->session->get( 'ongoing_klarna_order' ) . '. Customer shipping country: ' . WC()->customer->get_billing_country() );
@@ -847,7 +854,7 @@ class WC_Gateway_Klarna_Checkout_Ajax {
 			$customer_email = $current_user->user_email;
 		}
 
-		if ( $customer_email ) {
+		if ( ! $customer_email ) {
 			$customer_email = 'guest_checkout@klarna.com';
 		}
 
