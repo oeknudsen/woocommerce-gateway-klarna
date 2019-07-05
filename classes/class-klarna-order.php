@@ -400,7 +400,7 @@ class WC_Gateway_Klarna_Order {
 		 * If we got refunded items and all item prices are the same as in the original order - perform a line item refund.
 		 */
 		if ( ! empty( $refunded_items ) && $refund_items_got_full_price ) {
-			// Cart.
+			// Products.
 			foreach ( $refunded_items as $item ) {
 				$product = $item->get_product();
 				$klarna->addArtNo( abs( $item['qty'] ), self::get_item_reference( $product ) );
@@ -409,7 +409,7 @@ class WC_Gateway_Klarna_Order {
 			if ( $refund_order->get_shipping_total() < 0 ) {
 				if ( abs( $refund_order->get_shipping_total() ) == $order->get_shipping_total() ) {
 					// Full shipping refund.
-					$klarna->addArtNo( 1, self::get_refund_shipping_reference( $refund_order ) );
+					$klarna->addArtNo( 1, self::get_refund_shipping_reference( $refund_order, $order ) );
 				} else {
 					// Partial shipping refund.
 					$shipping_price_incl_tax = abs( round( $refund_order->get_shipping_total() + $refund_order->get_shipping_tax(), 2 ) );
@@ -456,7 +456,7 @@ class WC_Gateway_Klarna_Order {
 				foreach ( $refunded_items as $item ) {
 					try {
 						$product    = $item->get_product();
-						$item_price = round( ( $item->get_total() + $item->get_total_tax() ) / $item['qty'], 2 );
+						$item_price = abs( round( $item->get_total() + $item->get_total_tax(), 2 ) );
 						$_tax       = new WC_Tax();
 						$tmp_rates  = $_tax->get_rates( $product->get_tax_class() );
 						$vat        = array_shift( $tmp_rates );
@@ -488,7 +488,7 @@ class WC_Gateway_Klarna_Order {
 				if ( $refund_order->get_shipping_total() < 0 ) {
 					if ( abs( $refund_order->get_shipping_total() ) == $order->get_shipping_total() ) {
 						// Full shipping refund.
-						$klarna->addArtNo( 1, self::get_refund_shipping_reference( $refund_order ) );
+						$klarna->addArtNo( 1, self::get_refund_shipping_reference( $refund_order, $order ) );
 						try {
 							$ocr = $klarna->creditPart( $invNo ); // Invoice number
 							if ( $ocr ) {
@@ -531,7 +531,7 @@ class WC_Gateway_Klarna_Order {
 				if ( $refund_order->get_shipping_total() < 0 ) {
 					if ( abs( $refund_order->get_shipping_total() ) == $order->get_shipping_total() ) {
 						// Full shipping refund.
-						$klarna->addArtNo( 1, self::get_refund_shipping_reference( $refund_order ) );
+						$klarna->addArtNo( 1, self::get_refund_shipping_reference( $refund_order, $order ) );
 						try {
 							$ocr = $klarna->creditPart( $invNo ); // Invoice number
 							if ( $ocr ) {
@@ -1469,7 +1469,10 @@ class WC_Gateway_Klarna_Order {
 	 * @param int $order_id
 	 * @return string
 	 */
-	public static function get_refund_shipping_reference( $refund_order ) {
+	public static function get_refund_shipping_reference( $refund_order, $order ) {
+		if ( $shipping_reference = get_post_meta( $order->get_id(), '_klarna_shipping_sku', true ) ) {
+			return $shipping_reference;
+		}
 		$shipping_method_id   = reset( $refund_order->get_items( 'shipping' ) )->get_method_id();
 		$shipping_instance_id = reset( $refund_order->get_items( 'shipping' ) )->get_instance_id();
 
