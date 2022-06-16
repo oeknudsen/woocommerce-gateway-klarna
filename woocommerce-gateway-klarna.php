@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 if ( ! defined( 'WC_KLARNA_VER' ) ) {
-	define( 'WC_KLARNA_VER', '2.7.6' );
+	define( 'WC_KLARNA_VER', '2.7.7' );
 }
 
 /**
